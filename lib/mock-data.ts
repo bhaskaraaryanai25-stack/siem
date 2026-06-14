@@ -232,3 +232,75 @@ export const MOCK_ALERTS: Alert[] = [
 ]
 
 export { CATEGORIES }
+
+export function generateSingleEvent(index = 0): SecurityEvent {
+  const tpl = pick(TEMPLATES)
+  const suspicious = tpl.severity === "critical" || tpl.severity === "high"
+  const ip = suspicious && Math.random() > 0.4 ? randomIp(true) : randomIp()
+  const user = pick(USERS)
+  const source = pick(SOURCES)
+  const ts = new Date().toISOString()
+  const message = tpl.message(ip, user)
+  return {
+    id: `evt-${Date.now()}-${index}`,
+    timestamp: ts,
+    severity: tpl.severity,
+    category: tpl.category,
+    source,
+    sourceIp: ip,
+    user,
+    message,
+    raw: `${ts} ${source} ${tpl.category.toLowerCase()}: ${message} src_ip=${ip} user=${user}`,
+  }
+}
+
+export function generateRandomAlert(relatedEvents: SecurityEvent[]): Alert {
+  const alertTypes: Array<{ type: AlertType; title: string; description: string; severity: Severity; category: EventCategory }> = [
+    {
+      type: "Multiple Failed Logins",
+      title: "Brute-force attempt detected",
+      description: "Multiple failed authentication attempts detected in a short time frame.",
+      severity: "high",
+      category: "Authentication",
+    },
+    {
+      type: "Suspicious IP Behavior",
+      title: "Connection request from blacklisted IP address",
+      description: "An external host on a threat intelligence blocklist attempted to connect.",
+      severity: "medium",
+      category: "Network",
+    },
+    {
+      type: "Unauthorized Access Attempt",
+      title: "Admin login attempt from unrecognized host",
+      description: "Attempted administrative access to a secure service from an external IP.",
+      severity: "high",
+      category: "Access Control",
+    },
+    {
+      type: "Unusual Activity Spike",
+      title: "High outbound bandwidth consumption",
+      description: "Anomalous data transfer volume detected on production network interface.",
+      severity: "medium",
+      category: "Data Exfiltration",
+    },
+  ]
+
+  const choice = pick(alertTypes)
+  const sourceIp = relatedEvents[0]?.sourceIp ?? randomIp(true)
+  const id = `alr-${Date.now()}`
+
+  return {
+    id,
+    type: choice.type,
+    severity: choice.severity,
+    status: "open",
+    title: `${choice.title} on ${relatedEvents[0]?.source ?? "edge-firewall"}`,
+    description: choice.description,
+    sourceIp,
+    triggeredAt: new Date().toISOString(),
+    eventCount: Math.floor(Math.random() * 20) + 5,
+    relatedEventIds: relatedEvents.map((e) => e.id),
+    notes: [],
+  }
+}
